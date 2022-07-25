@@ -78,6 +78,7 @@ License: Revised BSD License, see LICENSE.TXT file include in the project
 /* --- PUBLIC FUNCTIONS DEFINITION ------------------------------------------ */
 
 int stts751_configure(int i2c_fd, uint8_t i2c_addr) {
+#if 0
     int err;
     uint8_t val;
 
@@ -141,13 +142,14 @@ int stts751_configure(int i2c_fd, uint8_t i2c_addr) {
         DEBUG_PRINTF("ERROR: failed to write I2C device 0x%02X (err=%i)\n", i2c_addr, err);
         return LGW_I2C_ERROR;
     }
-
+#endif
     return LGW_I2C_SUCCESS;
 }
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
 int stts751_get_temperature(int i2c_fd, uint8_t i2c_addr, float * temperature) {
+#if 0
     int err;
     uint8_t high_byte, low_byte;
     int8_t h;
@@ -176,7 +178,7 @@ int stts751_get_temperature(int i2c_fd, uint8_t i2c_addr, float * temperature) {
     *temperature = ((h << 8) | low_byte) / 256.0;
 
     DEBUG_PRINTF("Temperature: %f C (h:0x%02X l:0x%02X)\n", *temperature, high_byte, low_byte);
-
+#endif
     return LGW_I2C_SUCCESS;
 }
 

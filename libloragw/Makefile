@@ -35,6 +35,7 @@ all: 	libloragw.a \
 		test_loragw_com_sx1261 \
 		test_loragw_counter \
 		test_loragw_gps \
+		test_loragw_gps_i2c \
 		test_loragw_toa \
 		test_loragw_sx1261_rssi
 
@@ -170,6 +171,9 @@ test_loragw_toa: tst/test_loragw_toa.c libloragw.a
 	$(CC) $(CFLAGS) -L. -L../libtools  $< -o $@ $(LIBS)
 
 test_loragw_sx1261_rssi: tst/test_loragw_sx1261_rssi.c libloragw.a
+	$(CC) $(CFLAGS) -L. -L../libtools  $< -o $@ $(LIBS)
+	
+test_loragw_gps_i2c: tst/test_loragw_gps_i2c.c libloragw.a
 	$(CC) $(CFLAGS) -L. -L../libtools  $< -o $@ $(LIBS)
 
 ### EOF
