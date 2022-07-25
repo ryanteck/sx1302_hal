@@ -47,6 +47,8 @@ License: Revised BSD License, see LICENSE.TXT file include in the project
     #define CHECK_NULL(a)                if(a==NULL){return LGW_USB_ERROR;}
 #endif
 
+#include "loragw_stationlog.h"
+
 /* -------------------------------------------------------------------------- */
 /* --- PRIVATE CONSTANTS ---------------------------------------------------- */
 
@@ -69,7 +71,7 @@ int set_interface_attribs_linux(int fd, int speed) {
 
     /* Get current attributes */
     if (tcgetattr(fd, &tty) != 0) {
-        DEBUG_PRINTF("ERROR: tcgetattr failed with %d - %s", errno, strerror(errno));
+        ERROR_PRINTF("tcgetattr failed with %d - %s", errno, strerror(errno));
         return LGW_USB_ERROR;
     }
 
@@ -96,7 +98,7 @@ int set_interface_attribs_linux(int fd, int speed) {
 
     /* Set attributes */
     if (tcsetattr(fd, TCSANOW, &tty) != 0) {
-        DEBUG_PRINTF("ERROR: tcsetattr failed with %d - %s", errno, strerror(errno));
+        ERROR_PRINTF("tcsetattr failed with %d - %s", errno, strerror(errno));
         return LGW_USB_ERROR;
     }
 
@@ -113,7 +115,7 @@ int set_blocking_linux(int fd, bool blocking) {
 
     /* Get current attributes */
     if (tcgetattr(fd, &tty) != 0) {
-        DEBUG_PRINTF("ERROR: tcgetattr failed with %d - %s", errno, strerror(errno));
+        ERROR_PRINTF("tcgetattr failed with %d - %s", errno, strerror(errno));
         return LGW_USB_ERROR;
     }
 
@@ -122,7 +124,7 @@ int set_blocking_linux(int fd, bool blocking) {
 
     /* Set attributes */
     if (tcsetattr(fd, TCSANOW, &tty) != 0) {
-        DEBUG_PRINTF("ERROR: tcsetattr failed with %d - %s", errno, strerror(errno));
+        ERROR_PRINTF("tcsetattr failed with %d - %s", errno, strerror(errno));
         return LGW_USB_ERROR;
     }
 
@@ -147,7 +149,7 @@ int lgw_usb_open(const char * com_path, void **com_target_ptr) {
 
     usb_device = malloc(sizeof(int));
     if (usb_device == NULL) {
-        DEBUG_MSG("ERROR : MALLOC FAIL\n");
+        ERROR_PRINTF("MALLOC FAIL\n");
         return LGW_USB_ERROR;
     }
 
@@ -155,18 +157,18 @@ int lgw_usb_open(const char * com_path, void **com_target_ptr) {
     sprintf(portname, "%s", com_path);
     fd = open(portname, O_RDWR | O_NOCTTY | O_SYNC);
     if (fd < 0) {
-        printf("ERROR: failed to open COM port %s - %s\n", portname, strerror(errno));
+        ERROR_PRINTF("failed to open COM port %s - %s\n", portname, strerror(errno));
     } else {
-        printf("INFO: Configuring TTY\n");
+        INFO_PRINTF("INFO: Configuring TTY\n");
         x = set_interface_attribs_linux(fd, B115200);
         if (x != 0) {
-            printf("ERROR: failed to configure COM port %s\n", portname);
+            ERROR_PRINTF("failed to configure COM port %s\n", portname);
             free(usb_device);
             return LGW_USB_ERROR;
         }
 
         /* flush tty port before setting it as blocking */
-        printf("INFO: Flushing TTY\n");
+        INFO_PRINTF("INFO: Flushing TTY\n");
         do {
             n = read(fd, &data, 1);
             if (n > 0) {
@@ -175,10 +177,10 @@ int lgw_usb_open(const char * com_path, void **com_target_ptr) {
         } while (n > 0);
 
         /* set tty port blocking */
-        printf("INFO: Setting TTY in blocking mode\n");
+        INFO_PRINTF("INFO: Setting TTY in blocking mode\n");
         x = set_blocking_linux(fd, true);
         if (x != 0) {
-            printf("ERROR: failed to configure COM port %s\n", portname);
+            ERROR_PRINTF("failed to configure COM port %s\n", portname);
             free(usb_device);
             return LGW_USB_ERROR;
         }
@@ -187,25 +189,25 @@ int lgw_usb_open(const char * com_path, void **com_target_ptr) {
         *com_target_ptr = (void*)usb_device;
 
         /* Initialize pseudo-random generator for MCU request ID */
-        srand(0);
+        // srand(0);
 
         /* Check MCU version (ignore first char of the received version (release/debug) */
-        printf("INFO: Connect to MCU\n");
+        INFO_PRINTF("INFO: Connect to MCU\n");
         if (mcu_ping(fd, &gw_info) != 0) {
-            printf("ERROR: failed to ping the concentrator MCU\n");
+            ERROR_PRINTF("failed to ping the concentrator MCU\n");
             return LGW_USB_ERROR;
         }
         if (strncmp(gw_info.version + 1, mcu_version_string, sizeof mcu_version_string) != 0) {
             printf("WARNING: MCU version mismatch (expected:%s, got:%s)\n", mcu_version_string, gw_info.version);
         }
-        printf("INFO: Concentrator MCU version is %s\n", gw_info.version);
+        INFO_PRINTF("INFO: Concentrator MCU version is %s\n", gw_info.version);
 
         /* Get MCU status */
         if (mcu_get_status(fd, &mcu_status) != 0) {
-            printf("ERROR: failed to get status from the concentrator MCU\n");
+            ERROR_PRINTF("failed to get status from the concentrator MCU\n");
             return LGW_USB_ERROR;
         }
-        printf("INFO: MCU status: sys_time:%u temperature:%.1foC\n", mcu_status.system_time_ms, mcu_status.temperature);
+        INFO_PRINTF("INFO: MCU status: sys_time:%u temperature:%.1foC\n", mcu_status.system_time_ms, mcu_status.temperature);
 
         /* Reset SX1302 */
         x  = mcu_gpio_write(fd, 0, 1, 1); /*   set PA1 : POWER_EN */
@@ -215,7 +217,7 @@ int lgw_usb_open(const char * com_path, void **com_target_ptr) {
         x |= mcu_gpio_write(fd, 0, 8, 0); /*   set PA8 : SX1261_NRESET active */
         x |= mcu_gpio_write(fd, 0, 8, 1); /* unset PA8 : SX1261_NRESET inactive */
         if (x != 0) {
-            printf("ERROR: failed to reset SX1302\n");
+            ERROR_PRINTF("failed to reset SX1302\n");
             free(usb_device);
             return LGW_USB_ERROR;
         }
@@ -247,7 +249,7 @@ int lgw_usb_close(void *com_target) {
     x |= mcu_gpio_write(usb_device, 0, 8, 0); /*   set PA8 : SX1261_NRESET active */
     x |= mcu_gpio_write(usb_device, 0, 8, 1); /* unset PA8 : SX1261_NRESET inactive */
     if (x != 0) {
-        printf("ERROR: failed to reset SX1302\n");
+        ERROR_PRINTF("failed to reset SX1302\n");
         err = LGW_USB_ERROR;
     }
 
@@ -255,16 +257,16 @@ int lgw_usb_close(void *com_target) {
     x = close(usb_device);
     free(com_target);
     if (x != 0) {
-        printf("ERROR: failed to close USB file\n");
+        ERROR_PRINTF("failed to close USB file\n");
         err = LGW_USB_ERROR;
     }
 
     /* determine return code */
     if (err != 0) {
-        printf("ERROR: USB PORT FAILED TO CLOSE\n");
+        ERROR_PRINTF("USB PORT FAILED TO CLOSE\n");
         return LGW_USB_ERROR;
     } else {
-        DEBUG_MSG("Note: USB port closed\n");
+        INFO_PRINTF("Note: USB port closed\n");
         return LGW_USB_SUCCESS;
     }
 }
@@ -316,10 +318,10 @@ int lgw_usb_rmw(void *com_target, uint16_t address, uint8_t offs, uint8_t leng, 
 
     /* determine return code */
     if (a != 0) {
-        DEBUG_MSG("ERROR: USB WRITE FAILURE\n");
+        ERROR_PRINTF("USB WRITE FAILURE\n");
         return -1;
     } else {
-        DEBUG_MSG("Note: USB write success\n");
+        // DEBUG_MSG("Note: USB write success\n");
         return 0;
     }
 }
@@ -364,10 +366,10 @@ int lgw_usb_wb(void *com_target, uint8_t spi_mux_target, uint16_t address, const
 
     /* determine return code */
     if (a != 0) {
-        DEBUG_MSG("ERROR: USB WRITE BURST FAILURE\n");
+        ERROR_PRINTF("USB WRITE BURST FAILURE\n");
         return -1;
     } else {
-        DEBUG_MSG("Note: USB write burst success\n");
+        // DEBUG_MSG("Note: USB write burst success\n");
         return 0;
     }
 }
@@ -406,7 +408,7 @@ int lgw_usb_rb(void *com_target, uint8_t spi_mux_target, uint16_t address, uint8
 
     if (_lgw_write_mode == LGW_COM_WRITE_MODE_BULK) {
         /* makes no sense to read in bulk mode, as we can't get the result */
-        printf("ERROR: USB READ BURST FAILURE - bulk mode is enabled\n");
+        ERROR_PRINTF("USB READ BURST FAILURE - bulk mode is enabled\n");
         return -1;
     } else {
         a = mcu_spi_write(usb_device, in_out_buf, command_size);
@@ -414,10 +416,10 @@ int lgw_usb_rb(void *com_target, uint8_t spi_mux_target, uint16_t address, uint8
 
     /* determine return code */
     if (a != 0) {
-        DEBUG_MSG("ERROR: USB READ BURST FAILURE\n");
+        ERROR_PRINTF("USB READ BURST FAILURE\n");
         return -1;
     } else {
-        DEBUG_MSG("Note: USB read burst success\n");
+        // DEBUG_MSG("Note: USB read burst success\n");
         memcpy(data, in_out_buf + 9, size); /* remove the first bytes, keep only the payload */
         return 0;
     }
@@ -427,11 +429,11 @@ int lgw_usb_rb(void *com_target, uint8_t spi_mux_target, uint16_t address, uint8
 
 int lgw_usb_set_write_mode(lgw_com_write_mode_t write_mode) {
     if (write_mode >= LGW_COM_WRITE_MODE_UNKNOWN) {
-        printf("ERROR: wrong write mode\n");
+        ERROR_PRINTF("wrong write mode\n");
         return -1;
     }
 
-    DEBUG_PRINTF("INFO: setting USB write mode to %s\n", (write_mode == LGW_COM_WRITE_MODE_SINGLE) ? "SINGLE" : "BULK");
+    DEBUG_PRINTF("setting USB write mode to %s\n", (write_mode == LGW_COM_WRITE_MODE_SINGLE) ? "SINGLE" : "BULK");
 
     _lgw_write_mode = write_mode;
 
@@ -447,7 +449,7 @@ int lgw_usb_flush(void *com_target) {
     /* Check input parameters */
     CHECK_NULL(com_target);
     if (_lgw_write_mode != LGW_COM_WRITE_MODE_BULK) {
-        printf("ERROR: %s: cannot flush in single write mode\n", __FUNCTION__);
+        ERROR_PRINTF("cannot flush in single write mode\n");
         return -1;
     }
 
@@ -455,7 +457,7 @@ int lgw_usb_flush(void *com_target) {
     _lgw_write_mode = LGW_COM_WRITE_MODE_SINGLE;
 
     if (_lgw_spi_req_nb == 0) {
-        printf("INFO: no SPI request to flush\n");
+        INFO_PRINTF("no SPI request to flush\n");
         return 0;
     }
 
@@ -464,7 +466,7 @@ int lgw_usb_flush(void *com_target) {
     DEBUG_MSG("INFO: flushing USB write buffer\n");
     a = mcu_spi_flush(usb_device);
     if (a != 0) {
-        printf("ERROR: Failed to flush USB write buffer\n");
+        ERROR_PRINTF("Failed to flush USB write buffer\n");
     }
 
     /* reset the pending request number */
@@ -492,10 +494,10 @@ int lgw_usb_get_temperature(void *com_target, float * temperature) {
     usb_device = *(int *)com_target;
 
     if (mcu_get_status(usb_device, &mcu_status) != 0) {
-        printf("ERROR: failed to get status from the concentrator MCU\n");
+        ERROR_PRINTF("failed to get status from the concentrator MCU\n");
         return -1;
     }
-    DEBUG_PRINTF("INFO: temperature:%.1foC\n", mcu_status.temperature);
+    DEBUG_PRINTF("temperature:%.1foC\n", mcu_status.temperature);
 
     *temperature = mcu_status.temperature;
 

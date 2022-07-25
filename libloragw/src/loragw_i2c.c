@@ -21,6 +21,7 @@ License: Revised BSD License, see LICENSE.TXT file include in the project
 #include <unistd.h>     /* lseek, close */
 #include <fcntl.h>      /* open */
 #include <errno.h>      /* errno */
+#include <string.h>     /* strerror */
 
 #include <sys/ioctl.h>
 #include <linux/i2c.h>
@@ -42,6 +43,8 @@ License: Revised BSD License, see LICENSE.TXT file include in the project
     #define DEBUG_PRINTF(fmt, args...)
     #define CHECK_NULL(a)                if(a==NULL){return LGW_I2C_ERROR;}
 #endif
+
+#include "loragw_stationlog.h"
 
 /* -------------------------------------------------------------------------- */
 /* --- PRIVATE CONSTANTS ---------------------------------------------------- */

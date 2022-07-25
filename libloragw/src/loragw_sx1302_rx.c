@@ -40,6 +40,8 @@ License: Revised BSD License, see LICENSE.TXT file include in the project
     #define CHECK_NULL(a)                if(a==NULL){return LGW_REG_ERROR;}
 #endif
 
+#include "loragw_stationlog.h"
+
 #define SX1302_PKT_PAYLOAD_LENGTH(buffer, start_index)          TAKE_N_BITS_FROM(buffer[start_index +  2], 0, 8)
 #define SX1302_PKT_CHANNEL(buffer, start_index)                 TAKE_N_BITS_FROM(buffer[start_index +  3], 0, 8)
 #define SX1302_PKT_CRC_EN(buffer, start_index)                  TAKE_N_BITS_FROM(buffer[start_index +  4], 0, 1)
@@ -127,7 +129,7 @@ int rx_buffer_del(rx_buffer_t * self) {
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
 int rx_buffer_fetch(rx_buffer_t * self) {
-    int i, res;
+    int res;
     uint8_t buff[2];
     uint8_t payload_len;
     uint16_t next_pkt_idx;
@@ -155,20 +157,16 @@ int rx_buffer_fetch(rx_buffer_t * self) {
         memset(self->buffer, 0, sizeof self->buffer);
         res = lgw_mem_rb(0x4000, self->buffer, self->buffer_size, true);
         if (res != LGW_REG_SUCCESS) {
-            printf("ERROR: Failed to read RX buffer, SPI error\n");
+            ERROR_PRINTF("Failed to read RX buffer, SPI error\n");
             return LGW_REG_ERROR;
         }
 
         /* print debug info */
-        DEBUG_MSG("RX_BUFFER: ");
-        for (i = 0; i < self->buffer_size; i++) {
-            DEBUG_PRINTF("%02X ", self->buffer[i]);
-        }
-        DEBUG_MSG("\n");
+        DEBUG_PRINTF("RX BUFFER: %H ", self->buffer_size, self->buffer);
 
         /* Sanity check: is there at least 1 complete packet in the buffer */
         if (self->buffer_size < (SX1302_PKT_HEAD_METADATA + SX1302_PKT_TAIL_METADATA)) {
-            printf("WARNING: not enough data to have a complete packet, discard rx_buffer\n");
+            DEBUG_MSG("WARNING: not enough data to have a complete packet, discard rx_buffer\n");
             return rx_buffer_del(self);
         }
 
@@ -179,16 +177,16 @@ int rx_buffer_fetch(rx_buffer_t * self) {
                 DEBUG_PRINTF("INFO: syncword found at idx %d\n", idx);
                 break;
             } else {
-                printf("INFO: syncword not found at idx %d\n", idx);
+                DEBUG_PRINTF("INFO: syncword not found at idx %d\n", idx);
                 idx += 1;
             }
         }
         if (idx > self->buffer_size - 2) {
-            printf("WARNING: no syncword found, discard rx_buffer\n");
+            DEBUG_MSG("WARNING: no syncword found, discard rx_buffer\n");
             return rx_buffer_del(self);
         }
         if (idx != 0) {
-            printf("INFO: re-sync rx_buffer at idx %d\n", idx);
+            DEBUG_PRINTF("INFO: re-sync rx_buffer at idx %d\n", idx);
             memmove((void *)(self->buffer), (void *)(self->buffer + idx), self->buffer_size - idx);
             self->buffer_size -= idx;
         }
@@ -197,7 +195,7 @@ int rx_buffer_fetch(rx_buffer_t * self) {
         idx = 0;
         while (idx < self->buffer_size) {
             if ((self->buffer[idx] != SX1302_PKT_SYNCWORD_BYTE_0) || (self->buffer[idx + 1] != SX1302_PKT_SYNCWORD_BYTE_1)) {
-                printf("WARNING: syncword not found at idx %d, discard the rx_buffer\n", idx);
+                DEBUG_PRINTF("WARNING: syncword not found at idx %d, discard the rx_buffer\n", idx);
                 return rx_buffer_del(self);
             }
             /* One packet found in the buffer */
@@ -256,7 +254,7 @@ int rx_buffer_pop(rx_buffer_t * self, rx_packet_t * pkt) {
 
     /* Check if we have a complete packet in the rx buffer fetched */
     if((self->buffer_index + pkt_num_bytes) > self->buffer_size) {
-        printf("WARNING: aborting truncated message (size=%u)\n", self->buffer_size);
+        DEBUG_PRINTF("WARNING: aborting truncated message (size=%u)\n", self->buffer_size);
         return LGW_REG_WARNING;
     }
 
@@ -271,7 +269,7 @@ int rx_buffer_pop(rx_buffer_t * self, rx_packet_t * pkt) {
 
     /* Check if the checksum is correct */
     if (checksum_rcv != checksum_calc) {
-        printf("WARNING: checksum failed (got:0x%02X calc:0x%02X)\n", checksum_rcv, checksum_calc);
+        DEBUG_PRINTF("WARNING: checksum failed (got:0x%02X calc:0x%02X)\n", checksum_rcv, checksum_calc);
         return LGW_REG_WARNING;
     } else {
         DEBUG_PRINTF("Packet checksum OK (0x%02X)\n", checksum_rcv);
@@ -334,16 +332,16 @@ int rx_buffer_pop(rx_buffer_t * self, rx_packet_t * pkt) {
 
     /* Sanity checks: check the range of few metadata */
     if (pkt->modem_id > SX1302_FSK_MODEM_ID) {
-        printf("ERROR: modem_id is out of range - %u\n", pkt->modem_id);
+        ERROR_PRINTF("modem_id is out of range - %u\n", pkt->modem_id);
         return LGW_REG_ERROR;
     } else {
         if (pkt->modem_id <= SX1302_LORA_STD_MODEM_ID) { /* LoRa modems */
             if (pkt->rx_channel_in > 9) {
-                printf("ERROR: channel is out of range - %u\n", pkt->rx_channel_in);
+                ERROR_PRINTF("channel is out of range - %u\n", pkt->rx_channel_in);
                 return LGW_REG_ERROR;
             }
             if ((pkt->rx_rate_sf < 5) || (pkt->rx_rate_sf > 12)) {
-                printf("ERROR: SF is out of range - %u\n", pkt->rx_rate_sf);
+                ERROR_PRINTF("SF is out of range - %u\n", pkt->rx_rate_sf);
                 return LGW_REG_ERROR;
             }
         } else { /* FSK modem */

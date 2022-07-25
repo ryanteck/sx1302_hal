@@ -44,6 +44,8 @@ License: Revised BSD License, see LICENSE.TXT file include in the project
     #define CHECK_NULL(a)                if(a==NULL){return -1;}
 #endif
 
+#include "loragw_stationlog.h"
+
 /* -------------------------------------------------------------------------- */
 /* --- PRIVATE CONSTANTS ---------------------------------------------------- */
 
@@ -235,8 +237,8 @@ int write_req(int fd, order_id_t cmd, const uint8_t * payload, uint16_t payload_
 
 #if DEBUG_MCU == 1
     gettimeofday(&write_tv, NULL);
-#endif
     DEBUG_PRINTF("\nINFO: %ld.%ld: write_req 0x%02X (%s) done, id:0x%02X, size:%u\n", write_tv.tv_sec, write_tv.tv_usec, cmd, cmd_get_str(cmd), buf_w[0], payload_size);
+#endif
 
 #if DEBUG_VERBOSE
     int i;
@@ -285,8 +287,8 @@ int read_ack(int fd, uint8_t * hdr, uint8_t * buf, size_t buf_size) {
     } else {
 #if DEBUG_MCU == 1
         gettimeofday(&read_tv, NULL);
-#endif
         DEBUG_PRINTF("INFO: %ld.%ld: read %d bytes for header from gateway\n", read_tv.tv_sec, read_tv.tv_usec, n);
+#endif
     }
 
     /* Compute time spent in this function */
@@ -331,8 +333,8 @@ int read_ack(int fd, uint8_t * hdr, uint8_t * buf, size_t buf_size) {
             } else {
 #if DEBUG_MCU == 1
                 gettimeofday(&read_tv, NULL);
-#endif
                 DEBUG_PRINTF("INFO: %ld.%ld: read %d bytes from gateway\n", read_tv.tv_sec, read_tv.tv_usec, n);
+#endif
                 nb_read += n;
             }
         } while (nb_read < (int)size); /* we want to read only the expected payload, not more */
