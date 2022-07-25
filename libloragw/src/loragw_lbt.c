@@ -43,6 +43,8 @@ License: Revised BSD License, see LICENSE.TXT file include in the project
     #define DEBUG_PRINTF(fmt, args...)
 #endif
 
+#include "loragw_stationlog.h"
+
 /* -------------------------------------------------------------------------- */
 /* --- PRIVATE FUNCTIONS DEFINITION ----------------------------------------- */
 
