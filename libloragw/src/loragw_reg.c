@@ -39,6 +39,8 @@ License: Revised BSD License, see LICENSE.TXT file include in the project
     #define CHECK_NULL(a)               if(a==NULL){return LGW_REG_ERROR;}
 #endif
 
+#include "loragw_stationlog.h"
+
 /* -------------------------------------------------------------------------- */
 /* --- PRIVATE CONSTANTS ---------------------------------------------------- */
 
@@ -1170,24 +1172,24 @@ int lgw_connect(const lgw_com_type_t com_type, const char * com_path) {
 
     /* check COM link status */
     if (com_path == NULL) {
-        DEBUG_MSG("ERROR: COM PATH IS NOT SET\n");
+        ERROR_PRINTF("COM PATH IS NOT SET\n");
         return LGW_REG_ERROR;
     }
 
     /* open the COM link */
     com_stat = lgw_com_open(com_type, com_path);
     if (com_stat != LGW_COM_SUCCESS) {
-        DEBUG_MSG("ERROR CONNECTING CONCENTRATOR\n");
+        ERROR_PRINTF("CONNECTING CONCENTRATOR FAILED\n");
         return LGW_REG_ERROR;
     }
 
     /* check SX1302 version */
     com_stat = lgw_com_r(LGW_SPI_MUX_TARGET_SX1302, loregs[SX1302_REG_COMMON_VERSION_VERSION].addr, &u);
     if (com_stat != LGW_COM_SUCCESS) {
-        DEBUG_MSG("ERROR READING CHIP VERSION REGISTER\n");
+        ERROR_PRINTF("READING CHIP VERSION REGISTER\n");
         return LGW_REG_ERROR;
     }
-    printf("Note: chip version is 0x%02X (v%u.%u)\n", u, (u >> 4) & 0x0F, u & 0x0F) ;
+    INFO_PRINTF("chip version is 0x%02X (v%u.%u)\n", u, (u >> 4) & 0x0F, u & 0x0F) ;
 
     DEBUG_MSG("Note: success connecting the concentrator\n");
     return LGW_REG_SUCCESS;
@@ -1204,7 +1206,7 @@ int lgw_disconnect(void) {
         DEBUG_MSG("Note: success disconnecting the concentrator\n");
         return LGW_REG_SUCCESS;
     } else {
-        DEBUG_MSG("ERROR: Failed to disconnect the concentrator\n");
+        ERROR_PRINTF("Failed to disconnect the concentrator\n");
         return LGW_REG_ERROR;
     }
 }
@@ -1218,7 +1220,7 @@ int lgw_reg_w(uint16_t register_id, int32_t reg_value) {
 
     /* check input parameters */
     if (register_id >= LGW_TOTALREGS) {
-        DEBUG_MSG("ERROR: REGISTER NUMBER OUT OF DEFINED RANGE\n");
+        ERROR_PRINTF("REGISTER NUMBER OUT OF DEFINED RANGE\n");
         return LGW_REG_ERROR;
     }
 
@@ -1227,14 +1229,14 @@ int lgw_reg_w(uint16_t register_id, int32_t reg_value) {
 
     /* reject write to read-only registers */
     if (r.rdon == 1){
-        DEBUG_MSG("ERROR: TRYING TO WRITE A READ-ONLY REGISTER\n");
+        ERROR_PRINTF("TRYING TO WRITE A READ-ONLY REGISTER\n");
         return LGW_REG_ERROR;
     }
 
     com_stat = reg_w(LGW_SPI_MUX_TARGET_SX1302, r, reg_value);
 
     if (com_stat != LGW_COM_SUCCESS) {
-        DEBUG_MSG("ERROR: COM ERROR DURING REGISTER WRITE\n");
+        ERROR_PRINTF("COM ERROR DURING REGISTER WRITE\n");
         return LGW_REG_ERROR;
     } else {
         return LGW_REG_SUCCESS;
@@ -1251,7 +1253,7 @@ int lgw_reg_r(uint16_t register_id, int32_t *reg_value) {
     /* check input parameters */
     CHECK_NULL(reg_value);
     if (register_id >= LGW_TOTALREGS) {
-        DEBUG_MSG("ERROR: REGISTER NUMBER OUT OF DEFINED RANGE\n");
+        ERROR_PRINTF("REGISTER NUMBER OUT OF DEFINED RANGE\n");
         return LGW_REG_ERROR;
     }
 
@@ -1261,7 +1263,7 @@ int lgw_reg_r(uint16_t register_id, int32_t *reg_value) {
     com_stat = reg_r(LGW_SPI_MUX_TARGET_SX1302, r, reg_value);
 
     if (com_stat != LGW_COM_SUCCESS) {
-        DEBUG_MSG("ERROR: COM ERROR DURING REGISTER WRITE\n");
+        ERROR_PRINTF("COM ERROR DURING REGISTER WRITE\n");
         return LGW_REG_ERROR;
     } else {
         return LGW_REG_SUCCESS;
@@ -1278,11 +1280,11 @@ int lgw_reg_wb(uint16_t register_id, uint8_t *data, uint16_t size) {
     /* check input parameters */
     CHECK_NULL(data);
     if (size == 0) {
-        DEBUG_MSG("ERROR: BURST OF NULL LENGTH\n");
+        ERROR_PRINTF("BURST OF NULL LENGTH\n");
         return LGW_REG_ERROR;
     }
     if (register_id >= LGW_TOTALREGS) {
-        DEBUG_MSG("ERROR: REGISTER NUMBER OUT OF DEFINED RANGE\n");
+        ERROR_PRINTF("REGISTER NUMBER OUT OF DEFINED RANGE\n");
         return LGW_REG_ERROR;
     }
 
@@ -1291,7 +1293,7 @@ int lgw_reg_wb(uint16_t register_id, uint8_t *data, uint16_t size) {
 
     /* reject write to read-only registers */
     if (r.rdon == 1){
-        DEBUG_MSG("ERROR: TRYING TO BURST WRITE A READ-ONLY REGISTER\n");
+        ERROR_PRINTF("TRYING TO BURST WRITE A READ-ONLY REGISTER\n");
         return LGW_REG_ERROR;
     }
 
@@ -1299,7 +1301,7 @@ int lgw_reg_wb(uint16_t register_id, uint8_t *data, uint16_t size) {
     com_stat = lgw_com_wb(LGW_SPI_MUX_TARGET_SX1302, r.addr, data, size);
 
     if (com_stat != LGW_COM_SUCCESS) {
-        DEBUG_MSG("ERROR: COM ERROR DURING REGISTER BURST WRITE\n");
+        ERROR_PRINTF("COM ERROR DURING REGISTER BURST WRITE\n");
         return LGW_REG_ERROR;
     } else {
         return LGW_REG_SUCCESS;
@@ -1316,11 +1318,11 @@ int lgw_reg_rb(uint16_t register_id, uint8_t *data, uint16_t size) {
     /* check input parameters */
     CHECK_NULL(data);
     if (size == 0) {
-        DEBUG_MSG("ERROR: BURST OF NULL LENGTH\n");
+        ERROR_PRINTF("BURST OF NULL LENGTH\n");
         return LGW_REG_ERROR;
     }
     if (register_id >= LGW_TOTALREGS) {
-        DEBUG_MSG("ERROR: REGISTER NUMBER OUT OF DEFINED RANGE\n");
+        ERROR_PRINTF("REGISTER NUMBER OUT OF DEFINED RANGE\n");
         return LGW_REG_ERROR;
     }
 
@@ -1331,7 +1333,7 @@ int lgw_reg_rb(uint16_t register_id, uint8_t *data, uint16_t size) {
     com_stat = lgw_com_rb(LGW_SPI_MUX_TARGET_SX1302, r.addr, data, size);
 
     if (com_stat != LGW_COM_SUCCESS) {
-        DEBUG_MSG("ERROR: COM ERROR DURING REGISTER BURST READ\n");
+        ERROR_PRINTF("COM ERROR DURING REGISTER BURST READ\n");
         return LGW_REG_ERROR;
     } else {
         return LGW_REG_SUCCESS;
@@ -1351,7 +1353,7 @@ int lgw_mem_wb(uint16_t mem_addr, const uint8_t *data, uint16_t size) {
     /* check input parameters */
     CHECK_NULL(data);
     if (size == 0) {
-        DEBUG_MSG("ERROR: BURST OF NULL LENGTH\n");
+        ERROR_PRINTF("BURST OF NULL LENGTH\n");
         return LGW_REG_ERROR;
     }
 
@@ -1370,7 +1372,7 @@ int lgw_mem_wb(uint16_t mem_addr, const uint8_t *data, uint16_t size) {
     }
 
     if (com_stat != LGW_COM_SUCCESS) {
-        DEBUG_MSG("ERROR: COM ERROR DURING REGISTER BURST WRITE\n");
+        ERROR_PRINTF("COM ERROR DURING REGISTER BURST WRITE\n");
         return LGW_REG_ERROR;
     } else {
         return LGW_REG_SUCCESS;
@@ -1390,7 +1392,7 @@ int lgw_mem_rb(uint16_t mem_addr, uint8_t *data, uint16_t size, bool fifo_mode) 
     /* check input parameters */
     CHECK_NULL(data);
     if (size == 0) {
-        DEBUG_MSG("ERROR: BURST OF NULL LENGTH\n");
+        ERROR_PRINTF("BURST OF NULL LENGTH\n");
         return LGW_REG_ERROR;
     }
 
@@ -1413,7 +1415,7 @@ int lgw_mem_rb(uint16_t mem_addr, uint8_t *data, uint16_t size, bool fifo_mode) 
     }
 
     if (com_stat != LGW_COM_SUCCESS) {
-        DEBUG_MSG("ERROR: COM ERROR DURING REGISTER BURST READ\n");
+        ERROR_PRINTF("COM ERROR DURING REGISTER BURST READ\n");
         return LGW_REG_ERROR;
     } else {
         return LGW_REG_SUCCESS;

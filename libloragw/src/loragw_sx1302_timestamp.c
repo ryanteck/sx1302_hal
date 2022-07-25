@@ -46,6 +46,8 @@ License: Revised BSD License, see LICENSE.TXT file include in the project
     #define CHECK_NULL(a)                if(a==NULL){return LGW_REG_ERROR;}
 #endif
 
+#include "loragw_stationlog.h"
+
 /* -------------------------------------------------------------------------- */
 /* --- PRIVATE TYPES -------------------------------------------------------- */
 
@@ -121,7 +123,7 @@ int32_t legacy_timestamp_correction(uint8_t bandwidth, uint8_t sf, uint8_t cr, b
             bw_pow = 4;
             break;
         default:
-            printf("ERROR: UNEXPECTED VALUE %d IN SWITCH STATEMENT - %s\n", bandwidth, __FUNCTION__);
+            ERROR_PRINTF("UNEXPECTED VALUE %d IN SWITCH STATEMENT\n", bandwidth);
             return 0;
     }
 
@@ -188,13 +190,13 @@ int32_t legacy_timestamp_correction(uint8_t bandwidth, uint8_t sf, uint8_t cr, b
     total_delay = (filtering_delay + fft_delay_state3 + fft_delay + demap_delay + decode_delay + 500E3) / 1E6;
 
     if (total_delay > INT32_MAX) {
-        printf("ERROR: overflow error for timestamp correction (SHOULD NOT HAPPEN)\n");
-        printf("=> filtering_delay %" PRIu64 "\n", filtering_delay);
-        printf("=> fft_delay_state3 %" PRIu64 "\n", fft_delay_state3);
-        printf("=> fft_delay %" PRIu64 "\n", fft_delay);
-        printf("=> demap_delay %" PRIu64 "\n", demap_delay);
-        printf("=> decode_delay %" PRIu64 "\n", decode_delay);
-        printf("=> total_delay %" PRIu64 "\n", total_delay);
+        ERROR_PRINTF("overflow error for timestamp correction (SHOULD NOT HAPPEN)\n");
+        ERROR_PRINTF("=> filtering_delay %" PRIu64 "\n", filtering_delay);
+        ERROR_PRINTF("=> fft_delay_state3 %" PRIu64 "\n", fft_delay_state3);
+        ERROR_PRINTF("=> fft_delay %" PRIu64 "\n", fft_delay);
+        ERROR_PRINTF("=> demap_delay %" PRIu64 "\n", demap_delay);
+        ERROR_PRINTF("=> decode_delay %" PRIu64 "\n", decode_delay);
+        ERROR_PRINTF("=> total_delay %" PRIu64 "\n", total_delay);
         assert(0);
     }
 
@@ -231,7 +233,7 @@ int32_t precision_timestamp_correction(uint8_t bandwidth, uint8_t datarate, uint
             bw_pow = 4;
             break;
         default:
-            printf("ERROR: UNEXPECTED VALUE %d IN SWITCH STATEMENT - %s\n", bandwidth, __FUNCTION__);
+            ERROR_PRINTF("UNEXPECTED VALUE %d IN SWITCH STATEMENT\n", bandwidth);
             return 0;
     }
 
@@ -240,7 +242,7 @@ int32_t precision_timestamp_correction(uint8_t bandwidth, uint8_t datarate, uint
     /* NOTE: no need of the preamble size, only the payload duration is needed */
     /* WARNING: implicit header not supported */
     if (lora_packet_time_on_air(bandwidth, datarate, coderate, 0, false, !crc_en, payload_length, NULL, &nb_symbols_payload, &t_symbol_us) == 0) {
-        printf("ERROR: failed to compute packet time on air - %s\n", __FUNCTION__);
+        ERROR_PRINTF("failed to compute packet time on air\n");
         return 0;
     }
 
@@ -300,21 +302,18 @@ void timestamp_counter_delete(timestamp_counter_t * self) {
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
 void timestamp_counter_update(timestamp_counter_t * self, uint32_t pps, uint32_t inst) {
-    //struct timestamp_info_s* tinfo = (pps == true) ? &self->pps : &self->inst;
-
-    /* Check if counter has wrapped, and update wrap status if necessary */
-    if (pps < self->pps.counter_us_27bits_ref) {
-        self->pps.counter_us_27bits_wrap += 1;
-        self->pps.counter_us_27bits_wrap %= 32;
-    }
     if (inst < self->inst.counter_us_27bits_ref) {
         self->inst.counter_us_27bits_wrap += 1;
         self->inst.counter_us_27bits_wrap %= 32;
     }
-
-    /* Update counter reference */
-    self->pps.counter_us_27bits_ref = pps;
     self->inst.counter_us_27bits_ref = inst;
+
+    if (self->pps.counter_us_27bits_ref != pps) {
+        uint32_t inst32 = self->inst.counter_us_27bits_ref | (self->inst.counter_us_27bits_wrap<<27);
+        inst32 += (int32_t)((pps - inst)<<5) >> 5;  // 27bit signed diff  (extend sign over top 5 bits)
+        self->pps.counter_us_27bits_ref = inst32 & ((1<<27)-1);
+        self->pps.counter_us_27bits_wrap = inst32 >> 27;
+    }
 }
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
@@ -332,7 +331,7 @@ int timestamp_counter_get(timestamp_counter_t * self, uint32_t * inst, uint32_t 
     */
     x = lgw_reg_rb(SX1302_REG_TIMESTAMP_TIMESTAMP_PPS_MSB2_TIMESTAMP_PPS, &buff[0], 8);
     if (x != LGW_REG_SUCCESS) {
-        printf("ERROR: Failed to get timestamp counter value\n");
+        ERROR_PRINTF("Failed to get timestamp counter value\n");
         return -1;
     }
 
@@ -342,13 +341,13 @@ int timestamp_counter_get(timestamp_counter_t * self, uint32_t * inst, uint32_t 
      */
     x = lgw_reg_rb(SX1302_REG_TIMESTAMP_TIMESTAMP_PPS_MSB2_TIMESTAMP_PPS, &buff_wa[0], 8);
     if (x != LGW_REG_SUCCESS) {
-        printf("ERROR: Failed to get timestamp counter MSB value\n");
+        ERROR_PRINTF("Failed to get timestamp counter MSB value\n");
         return -1;
     }
     if ((buff[0] != buff_wa[0]) || (buff[4] != buff_wa[4])) {
         x = lgw_reg_rb(SX1302_REG_TIMESTAMP_TIMESTAMP_PPS_MSB2_TIMESTAMP_PPS, &buff_wa[0], 8);
         if (x != LGW_REG_SUCCESS) {
-            printf("ERROR: Failed to get timestamp counter MSB value\n");
+            ERROR_PRINTF("Failed to get timestamp counter MSB value\n");
             return -1;
         }
         memcpy(buff, buff_wa, 8); /* use the new read value */
@@ -429,11 +428,11 @@ int timestamp_counter_mode(bool ftime_enable) {
     int x = LGW_REG_SUCCESS;
 
     if (ftime_enable == false) {
-        printf("INFO: using legacy timestamp\n");
+        INFO_PRINTF("using legacy timestamp\n");
         /* Latch end-of-packet timestamp (sx1301 compatibility) */
         x |= lgw_reg_w(SX1302_REG_RX_TOP_RX_BUFFER_LEGACY_TIMESTAMP, 0x01);
     } else {
-        printf("INFO: using precision timestamp (max_ts_metrics:%u nb_symbols:%u)\n", PRECISION_TIMESTAMP_TS_METRICS_MAX, PRECISION_TIMESTAMP_NB_SYMBOLS);
+        INFO_PRINTF("using precision timestamp (max_ts_metrics:%u nb_symbols:%u)\n", PRECISION_TIMESTAMP_TS_METRICS_MAX, PRECISION_TIMESTAMP_NB_SYMBOLS);
 
         /* Latch end-of-preamble timestamp */
         x |= lgw_reg_w(SX1302_REG_RX_TOP_RX_BUFFER_LEGACY_TIMESTAMP, 0x00);
@@ -453,15 +452,15 @@ int32_t timestamp_counter_correction(lgw_context_t * context, uint8_t bandwidth,
     /* Check input parameters */
     CHECK_NULL(context);
     if (IS_LORA_DR(datarate) == false) {
-        printf("ERROR: wrong datarate (%u) - %s\n", datarate, __FUNCTION__);
+        ERROR_PRINTF("wrong datarate (%u)\n", datarate);
         return 0;
     }
     if (IS_LORA_BW(bandwidth) == false) {
-        printf("ERROR: wrong bandwidth (%u) - %s\n", bandwidth, __FUNCTION__);
+        ERROR_PRINTF("wrong bandwidth (%u)\n", bandwidth);
         return 0;
     }
     if (IS_LORA_CR(coderate) == false) {
-        printf("ERROR: wrong coding rate (%u) - %s\n", coderate, __FUNCTION__);
+        ERROR_PRINTF("wrong coding rate (%u)\n", coderate);
         return 0;
     }
 
@@ -496,7 +495,7 @@ int precise_timestamp_calculate(uint8_t ts_metrics_nb, const int8_t * ts_metrics
 
     /* Check if we can calculate a ftime */
     if (timestamp_pps_history.size < MAX_TIMESTAMP_PPS_HISTORY) {
-        printf("INFO: Cannot compute ftime yet, PPS history is too short\n");
+        INFO_PRINTF("Cannot compute ftime yet, PPS history is too short\n");
         return -1;
     }
 
@@ -551,7 +550,7 @@ int precise_timestamp_calculate(uint8_t ts_metrics_nb, const int8_t * ts_metrics
     /* Find the last timestamp_pps before packet to use as reference for ftime */
     x = lgw_reg_rb(SX1302_REG_TIMESTAMP_TIMESTAMP_PPS_MSB2_TIMESTAMP_PPS , &buff[0], 4);
     if (x != LGW_REG_SUCCESS) {
-        printf("ERROR: Failed to get timestamp counter value\n");
+        ERROR_PRINTF("Failed to get timestamp counter value\n");
         return 0;
     }
     timestamp_pps_reg  = (uint32_t)((buff[0] << 24) & 0xFF000000);
@@ -574,7 +573,7 @@ int precise_timestamp_calculate(uint8_t ts_metrics_nb, const int8_t * ts_metrics
             }
         }
         if (timestamp_pps_idx == timestamp_pps_history.size) {
-            printf("ERROR: failed to find the reference timestamp_pps, cannot compute ftime\n");
+            ERROR_PRINTF("failed to find the reference timestamp_pps, cannot compute ftime\n");
             return -1;
         }
 
@@ -596,7 +595,7 @@ int precise_timestamp_calculate(uint8_t ts_metrics_nb, const int8_t * ts_metrics
 
     /* Sanity Check on xtal_correct */
     if ((xtal_correct > 1.2) || (xtal_correct < 0.8)) {
-        printf("ERROR: xtal_error is invalid (%.15lf)\n", xtal_correct);
+        ERROR_PRINTF("xtal_error is invalid (%.15lf)\n", xtal_correct);
         return -1;
     }
 
@@ -622,7 +621,7 @@ int precise_timestamp_calculate(uint8_t ts_metrics_nb, const int8_t * ts_metrics
 
     *result_ftime = (uint32_t)pkt_ftime;
     if (*result_ftime > 1E9) {
-        printf("ERROR: fine timestamp is out of range (%u)\n", *result_ftime);
+        ERROR_PRINTF("fine timestamp is out of range (%u)\n", *result_ftime);
         return -1;
     }
 

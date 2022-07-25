@@ -40,6 +40,8 @@ License: Revised BSD License, see LICENSE.TXT file include in the project
 
 #define MATCH(a,b) ( ((int32_t)(a-b)<=1) && ((int32_t)(a-b)>=-1) ) /* tolerate 1µs */
 
+#include "loragw_stationlog.h"
+
 /* -------------------------------------------------------------------------- */
 /* --- PRIVATE CONSTANTS ---------------------------------------------------- */
 
