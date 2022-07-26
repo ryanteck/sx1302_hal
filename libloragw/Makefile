@@ -12,6 +12,7 @@ CC := $(CROSS_COMPILE)gcc
 AR := $(CROSS_COMPILE)ar
 
 CFLAGS := -O2 -Wall -Wextra -std=c99 -Iinc -I. -I../libtools/inc
+CFLAGS += ${EXTRA_CFLAGS}
 
 OBJDIR = obj
 INCLUDES = $(wildcard inc/*.h) $(wildcard ../libtools/inc/*.h)

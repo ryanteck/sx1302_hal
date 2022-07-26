@@ -46,6 +46,8 @@ License: Revised BSD License, see LICENSE.TXT file include in the project
     #define CHECK_NULL(a)                if(a==NULL){return LGW_SPI_ERROR;}
 #endif
 
+#include "loragw_stationlog.h"
+
 /* -------------------------------------------------------------------------- */
 /* --- PRIVATE CONSTANTS ---------------------------------------------------- */
 
@@ -83,6 +85,7 @@ int lgw_spi_open(const char * com_path, void **com_target_ptr) {
     }
 
     /* setting SPI mode to 'mode 0' */
+    INFO_PRINTF("Setting SPI speed to %u\n", SPI_SPEED);
     i = SPI_MODE_0;
     a = ioctl(dev, SPI_IOC_WR_MODE, &i);
     b = ioctl(dev, SPI_IOC_RD_MODE, &i);
@@ -359,7 +362,7 @@ int lgw_spi_rb(void *com_target, uint8_t spi_mux_target, uint16_t address, uint8
         k[1].rx_buf = (unsigned long)(data + offset);
         k[1].len = chunk_size;
         byte_transfered += (ioctl(spi_device, SPI_IOC_MESSAGE(2), &k) - k[0].len );
-        DEBUG_PRINTF("BURST READ: to trans %d # chunk %d # transferred %d \n", size_to_do, chunk_size, byte_transfered);
+        // XDEBUG_PRINTF("BURST READ: to trans %d # chunk %d # transferred %d \n", size_to_do, chunk_size, byte_transfered);
         size_to_do -= chunk_size;  /* subtract the quantity of data already transferred */
     }
 
@@ -368,7 +371,7 @@ int lgw_spi_rb(void *com_target, uint8_t spi_mux_target, uint16_t address, uint8
         DEBUG_MSG("ERROR: SPI BURST READ FAILURE\n");
         return LGW_SPI_ERROR;
     } else {
-        DEBUG_MSG("Note: SPI burst read success\n");
+        // DEBUG_MSG("Note: SPI burst read success\n");
         return LGW_SPI_SUCCESS;
     }
 }

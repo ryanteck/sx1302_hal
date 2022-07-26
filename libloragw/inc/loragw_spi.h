@@ -23,6 +23,7 @@ License: Revised BSD License, see LICENSE.TXT file include in the project
 /* --- DEPENDANCIES --------------------------------------------------------- */
 
 #include <stdint.h>        /* C99 types*/
+#include <stdlib.h>        /* getenv atoi */
 
 #include "config.h"    /* library configuration options (dynamically generated) */
 
@@ -32,7 +33,7 @@ License: Revised BSD License, see LICENSE.TXT file include in the project
 #define LGW_SPI_SUCCESS     0
 #define LGW_SPI_ERROR       -1
 
-#define SPI_SPEED       2000000
+#define SPI_SPEED       (getenv("LORAGW_SPI_SPEED")==NULL ? 2000000 : atoi(getenv("LORAGW_SPI_SPEED")))
 
 /* -------------------------------------------------------------------------- */
 /* --- PUBLIC FUNCTIONS PROTOTYPES ------------------------------------------ */

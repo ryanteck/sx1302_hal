@@ -894,7 +894,7 @@ int lgw_start(void) {
                     err = sx125x_setup(i, CONTEXT_BOARD.clksrc, true, CONTEXT_RF_CHAIN[i].type, CONTEXT_RF_CHAIN[i].freq_hz);
                     break;
                 default:
-                    DEBUG_PRINTF("ERROR: RADIO TYPE NOT SUPPORTED (RF_CHAIN %d)\n", i);
+                    printf("ERROR: RADIO TYPE NOT SUPPORTED (RF_CHAIN %d)\n", i);
                     return LGW_HAL_ERROR;
             }
             if (err != LGW_REG_SUCCESS) {
@@ -1008,7 +1008,7 @@ int lgw_start(void) {
             DEBUG_MSG("Loading AGC fw for sx1250\n");
             err = sx1302_agc_load_firmware(agc_firmware_sx1250);
             if (err != LGW_REG_SUCCESS) {
-                printf("ERROR: failed to load AGC firmware for sx1250\n");
+                ERROR_PRINTF("ERROR: failed to load AGC firmware for sx1250\n");
                 return LGW_HAL_ERROR;
             }
             break;
@@ -1017,7 +1017,7 @@ int lgw_start(void) {
             DEBUG_MSG("Loading AGC fw for sx125x\n");
             err = sx1302_agc_load_firmware(agc_firmware_sx125x);
             if (err != LGW_REG_SUCCESS) {
-                printf("ERROR: failed to load AGC firmware for sx125x\n");
+                ERROR_PRINTF("ERROR: failed to load AGC firmware for sx125x\n");
                 return LGW_HAL_ERROR;
             }
             break;
@@ -1026,7 +1026,7 @@ int lgw_start(void) {
     }
     err = sx1302_agc_start(FW_VERSION_AGC, CONTEXT_RF_CHAIN[CONTEXT_BOARD.clksrc].type, SX1302_AGC_RADIO_GAIN_AUTO, SX1302_AGC_RADIO_GAIN_AUTO, CONTEXT_BOARD.full_duplex, CONTEXT_SX1261.lbt_conf.enable);
     if (err != LGW_REG_SUCCESS) {
-        printf("ERROR: failed to start AGC firmware\n");
+        ERROR_PRINTF("ERROR: failed to start AGC firmware\n");
         return LGW_HAL_ERROR;
     }
 
@@ -1034,26 +1034,26 @@ int lgw_start(void) {
     DEBUG_MSG("Loading ARB fw\n");
     err = sx1302_arb_load_firmware(arb_firmware);
     if (err != LGW_REG_SUCCESS) {
-        printf("ERROR: failed to load ARB firmware\n");
+        ERROR_PRINTF("ERROR: failed to load ARB firmware\n");
         return LGW_HAL_ERROR;
     }
     err = sx1302_arb_start(FW_VERSION_ARB, &CONTEXT_FINE_TIMESTAMP);
     if (err != LGW_REG_SUCCESS) {
-        printf("ERROR: failed to start ARB firmware\n");
+        ERROR_PRINTF("ERROR: failed to start ARB firmware\n");
         return LGW_HAL_ERROR;
     }
 
     /* static TX configuration */
     err = sx1302_tx_configure(CONTEXT_RF_CHAIN[CONTEXT_BOARD.clksrc].type);
     if (err != LGW_REG_SUCCESS) {
-        printf("ERROR: failed to configure SX1302 TX path\n");
+        ERROR_PRINTF("ERROR: failed to configure SX1302 TX path\n");
         return LGW_HAL_ERROR;
     }
 
     /* enable GPS */
     err = sx1302_gps_enable(true);
     if (err != LGW_REG_SUCCESS) {
-        printf("ERROR: failed to enable GPS on sx1302\n");
+        ERROR_PRINTF("ERROR: failed to enable GPS on sx1302\n");
         return LGW_HAL_ERROR;
     }
 
@@ -1071,7 +1071,7 @@ int lgw_start(void) {
     /* Open the file for writting */
     log_file = fopen(CONTEXT_DEBUG.log_file_name, "w+"); /* create log file, overwrite if file already exist */
     if (log_file == NULL) {
-        printf("ERROR: impossible to create log file %s\n", CONTEXT_DEBUG.log_file_name);
+        ERROR_PRINTF("ERROR: impossible to create log file %s\n", CONTEXT_DEBUG.log_file_name);
         return LGW_HAL_ERROR;
     } else {
         printf("INFO: %s file opened for debug log\n", CONTEXT_DEBUG.log_file_name);
@@ -1080,7 +1080,7 @@ int lgw_start(void) {
         unlink("loragw_hal.log");
         i = symlink(CONTEXT_DEBUG.log_file_name, "loragw_hal.log");
         if (i < 0) {
-            printf("ERROR: impossible to create symlink to log file %s\n", CONTEXT_DEBUG.log_file_name);
+            ERROR_PRINTF("ERROR: impossible to create symlink to log file %s\n", CONTEXT_DEBUG.log_file_name);
         }
     }
 #endif

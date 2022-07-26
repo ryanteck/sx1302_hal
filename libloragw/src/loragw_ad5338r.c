@@ -32,6 +32,8 @@ License: Revised BSD License, see LICENSE.TXT file include in the project
     #define CHECK_NULL(a)               if(a==NULL){return LGW_I2C_ERROR;}
 #endif
 
+#include "loragw_stationlog.h"
+
 /* -------------------------------------------------------------------------- */
 /* --- PUBLIC FUNCTIONS DEFINITION ------------------------------------------ */
 
