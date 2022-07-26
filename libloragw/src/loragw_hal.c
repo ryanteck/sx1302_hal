@@ -89,10 +89,8 @@ License: Revised BSD License, see LICENSE.TXT file include in the project
 /* -------------------------------------------------------------------------- */
 /* --- PRIVATE CONSTANTS & TYPES -------------------------------------------- */
 
-#define FW_VERSION_AGC_SX1250   10 /* Expected version of AGC firmware for sx1250 based gateway */
-                                   /* v10 is same as v6 with improved channel check time for LBT */
-#define FW_VERSION_AGC_SX125X   6  /* Expected version of AGC firmware for sx1255/sx1257 based gateway */
-#define FW_VERSION_ARB          2  /* Expected version of arbiter firmware */
+#define FW_VERSION_AGC      10 /* Expected version of AGC firmware */
+#define FW_VERSION_ARB      2  /* Expected version of arbiter firmware */
 
 /* Useful bandwidth of SX125x radios to consider depending on channel bandwidth */
 /* Note: the below values come from lab measurements. For any question, please contact Semtech support */
@@ -792,8 +790,10 @@ int lgw_sx1261_setconf(struct lgw_conf_sx1261_s * conf) {
 
     /* Set the SX1261 global conf */
     CONTEXT_SX1261.enable = conf->enable;
+    if (CONTEXT_COM_TYPE == LGW_COM_SPI) {
     strncpy(CONTEXT_SX1261.spi_path, conf->spi_path, sizeof CONTEXT_SX1261.spi_path);
     CONTEXT_SX1261.spi_path[sizeof CONTEXT_SX1261.spi_path - 1] = '\0'; /* ensure string termination */
+    }
     CONTEXT_SX1261.rssi_offset = conf->rssi_offset;
 
     /* Set the LBT conf */
@@ -847,7 +847,6 @@ int lgw_debug_setconf(struct lgw_conf_debug_s * conf) {
 
 int lgw_start(void) {
     int i, err;
-    uint8_t fw_version_agc;
 
     DEBUG_PRINTF(" --- %s\n", "IN");
 
@@ -895,7 +894,7 @@ int lgw_start(void) {
                     err = sx125x_setup(i, CONTEXT_BOARD.clksrc, true, CONTEXT_RF_CHAIN[i].type, CONTEXT_RF_CHAIN[i].freq_hz);
                     break;
                 default:
-                    printf("ERROR: RADIO TYPE NOT SUPPORTED (RF_CHAIN %d)\n", i);
+                    DEBUG_PRINTF("ERROR: RADIO TYPE NOT SUPPORTED (RF_CHAIN %d)\n", i);
                     return LGW_HAL_ERROR;
             }
             if (err != LGW_REG_SUCCESS) {
@@ -1012,7 +1011,6 @@ int lgw_start(void) {
                 printf("ERROR: failed to load AGC firmware for sx1250\n");
                 return LGW_HAL_ERROR;
             }
-            fw_version_agc = FW_VERSION_AGC_SX1250;
             break;
         case LGW_RADIO_TYPE_SX1255:
         case LGW_RADIO_TYPE_SX1257:
@@ -1022,13 +1020,11 @@ int lgw_start(void) {
                 printf("ERROR: failed to load AGC firmware for sx125x\n");
                 return LGW_HAL_ERROR;
             }
-            fw_version_agc = FW_VERSION_AGC_SX125X;
             break;
         default:
-            printf("ERROR: failed to load AGC firmware, radio type not supported (%d)\n", CONTEXT_RF_CHAIN[CONTEXT_BOARD.clksrc].type);
-            return LGW_HAL_ERROR;
+            break;
     }
-    err = sx1302_agc_start(fw_version_agc, CONTEXT_RF_CHAIN[CONTEXT_BOARD.clksrc].type, SX1302_AGC_RADIO_GAIN_AUTO, SX1302_AGC_RADIO_GAIN_AUTO, CONTEXT_BOARD.full_duplex, CONTEXT_SX1261.lbt_conf.enable);
+    err = sx1302_agc_start(FW_VERSION_AGC, CONTEXT_RF_CHAIN[CONTEXT_BOARD.clksrc].type, SX1302_AGC_RADIO_GAIN_AUTO, SX1302_AGC_RADIO_GAIN_AUTO, CONTEXT_BOARD.full_duplex, CONTEXT_SX1261.lbt_conf.enable);
     if (err != LGW_REG_SUCCESS) {
         printf("ERROR: failed to start AGC firmware\n");
         return LGW_HAL_ERROR;
@@ -1093,6 +1089,7 @@ int lgw_start(void) {
     dbg_init_random();
 
     if (CONTEXT_COM_TYPE == LGW_COM_SPI) {
+#if 0
         /* Find the temperature sensor on the known supported ports */
         for (i = 0; i < (int)(sizeof I2C_PORT_TEMP_SENSOR); i++) {
             ts_addr = I2C_PORT_TEMP_SENSOR[i];
@@ -1116,7 +1113,7 @@ int lgw_start(void) {
             printf("ERROR: no temperature sensor found.\n");
             return LGW_HAL_ERROR;
         }
-
+#endif
         /* Configure ADC AD338R for full duplex (CN490 reference design) */
         if (CONTEXT_BOARD.full_duplex == true) {
             err = i2c_linuxdev_open(I2C_DEVICE, I2C_PORT_DAC_AD5338R, &ad_fd);
